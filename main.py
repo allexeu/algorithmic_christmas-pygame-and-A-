@@ -8,7 +8,7 @@ pygame.init()
 clock = pygame.time.Clock()
 
 # Class imports
-from gift_obj import gift_obj
+from GiftObj import GiftObj
 
 # Functions imports
 from draw_text import draw_text
@@ -18,12 +18,14 @@ from snow_falling import snow_falling
 from collision_test_move import move
 from anim_load import anim_load
 from change_action import change_action
+from gift_position import possible_gift_position
 
 # Main colors
 black = (0, 0, 0)
 white = (255, 255, 255)
 red = (255, 0, 0)
-sky_blue = (146,244,255)
+sky_blue = (146, 244, 255)
+light_green = (90, 233, 159)
 
 # Sprites load
 santa_icon = pygame.image.load('game_core/sprites/santa/santa.png')
@@ -123,13 +125,16 @@ def level_1():
     # List of tiles for level
     # 0 - means empty tile
     map_tiles_list = [0, pygame.image.load('game_core/sprites/map/dirt.png'),
-                         pygame.image.load('game_core/sprites/map/snow.png')]
+                         pygame.image.load('game_core/sprites/map/snow.png'),
+                         pygame.image.load('game_core/sprites/map/icy_snow.png'),
+                         pygame.image.load('game_core/sprites/map/bricks.png')]
 
     # Map loading
-    map_list = map_load('level1_astar.txt')
+    map_list = map_load('level3.txt')
 
-    # Gift tile
-    gift = pygame.image.load("game_core/sprites/map/gift.png")
+    # Gifts tiles
+    gifts = [pygame.image.load("game_core/sprites/map/gift.png"),
+             pygame.image.load("game_core/sprites/map/gift1.png")]
 
     # Player tile
     santa = pygame.image.load("game_core/sprites/santa/santa.png")
@@ -183,18 +188,20 @@ def level_1():
     # Walking sound timer
     walking_timer = 0
 
-    # Gift init and sprite init
-    x = random.randint(0, 384)
-    y = random.randint(0, 150)
-    print(x, y)
-    gift_box = gift_obj(gift, (x, y))
+    # Gift init
+    gift_obj = GiftObj(random.choice(gifts), possible_gift_position(map_list))
+    print(possible_gift_position(map_list))
+
+    # Score
+    score_counter = 0
 
     while True:
         # Screen filling
         surface.fill(sky_blue)
 
         # Scroll
-        true_scroll[0] += (santa_hitbox.x - true_scroll[0] - 152) / 20
+        true_scroll[0] = 0
+        # true_scroll[0] += (santa_hitbox.x - true_scroll[0] - 152) / 20
         scroll = true_scroll.copy()
         scroll[0] = int(scroll[0])
 
@@ -203,7 +210,7 @@ def level_1():
             scroll[0] = 0
 
         # Backgorund objects
-        pygame.draw.rect(surface, (7, 80, 75), pygame.Rect(0, 120, 300, 80))
+        pygame.draw.rect(surface, (7, 80, 75), pygame.Rect(0, 150, 300, 80))
         for background_object in background_objects:
             obj_rect = pygame.Rect(background_object[1][0] - scroll[0] * background_object[0],
                                    background_object[1][1] - scroll[1] * background_object[0], background_object[1][2],
@@ -223,9 +230,9 @@ def level_1():
         # Player moving handling
         player_position = [0, 0]
         if moving_right:
-            player_position[0] += 2
+            player_position[0] += 3
         if moving_left:
-            player_position[0] -= 2
+            player_position[0] -= 3
 
         # Gravity applying
         player_position[1] += player_jump
@@ -277,15 +284,17 @@ def level_1():
         # Player rendering
         surface.blit(pygame.transform.flip(santa, player_flip, False), (santa_hitbox.x, santa_hitbox.y))
 
-        if gift_box.hitbox_collision(santa_hitbox, scroll):
+        # Collision with gift handling
+        if gift_obj.hitbox_collision(santa_hitbox, scroll):
             coin_sound.play()
-            x = random.randint(0, 384)
-            y = random.randint(0, 150)
-            print(x, y)
-            gift_box = gift_obj(gift, (x, y))
+            score_counter += 1
+            gift_obj = GiftObj(random.choice(gifts), possible_gift_position(map_list))
 
         # Gift render
-        gift_box.render(surface, scroll)
+        gift_obj.render(surface, scroll)
+
+        # Score handling
+        surface.blit(draw_text('Score:' + str(score_counter), 'BULKYPIX.TTF', 12, red), (0, 0))
 
         for event in pygame.event.get():
 

@@ -1,7 +1,7 @@
-import random
 import pygame
 
-class gift_obj():
+
+class GiftObj:
 
     def __init__(self, sprite, loc):
         self.sprite = sprite

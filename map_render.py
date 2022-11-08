@@ -9,6 +9,10 @@ def map_render(surface, map_list, tile_size, tiles_list, tiles_hitboxes, scroll)
                 surface.blit(tiles_list[int(tile)], (x * tile_size - scroll[0], y * tile_size))
             if tile == '2':
                 surface.blit(tiles_list[int(tile)], (x * tile_size - scroll[0], y * tile_size))
+            if tile == '3':
+                surface.blit(tiles_list[int(tile)], (x * tile_size - scroll[0], y * tile_size))
+            if tile == '4':
+                surface.blit(tiles_list[int(tile)], (x * tile_size - scroll[0], y * tile_size))
             if tile != '0':
                 tiles_hitboxes.append(pygame.Rect(x * tile_size - scroll[0], y * tile_size, tile_size, tile_size))
             x += 1
