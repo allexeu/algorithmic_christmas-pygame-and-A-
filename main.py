@@ -154,12 +154,6 @@ def level_1():
     player_jump = 0
     air_timer = 0
 
-    # Bot movement
-    bot_moving_top = False
-    bot_moving_down = False
-    bot_moving_right = False
-    bot_moving_left = False
-
     # Scroll
     true_scroll = [0, 0]
 
@@ -213,6 +207,9 @@ def level_1():
     cols, rows = 24, 16
     path_map = path_map_load('level3_path_map.txt')
 
+    def get_circle(x, y):
+        return (x * 16 + 16 // 2, y * 16 + 16 // 2), 16 // 4
+
     def get_neighbours(x, y):
         check_neighbour = lambda x, y: True if 0 <= x < cols and 0 <= y < rows else False
         ways = [-1, 0], [0, -1], [1, 0], [0, 1]
@@ -259,13 +256,19 @@ def level_1():
     heappush(queue, (0, start))
     visited = Astar(start, goal, graph)
     print(visited)
-    def get_circle(x, y):
-        return (x * 16 + 16 // 2, y * 16 + 16 // 2), 16 // 4
 
+    # Robot path
+    robot_path = []
+
+    path_head = goal
     # Robot movement
     robot_movement = []
+    currentTick = 0
+
+
 
     while True:
+        currentTick += 1
         print("======= Game tick ========")
         # Screen filling
         surface.fill(sky_blue)
@@ -355,47 +358,58 @@ def level_1():
         surface.blit(pygame.transform.flip(santa, player_flip, False), (santa_hitbox.x, santa_hitbox.y))
 
         # Collision with gift handling
-        if gift_obj.hitbox_collision(santa_hitbox, scroll):
+        if gift_obj.hitbox_collision(santa_hitbox, scroll) or robot_hitbox.colliderect(gift_obj.get_hitbox(scroll)):
+            robot_movement.clear()
             coin_sound.play()
             score_counter += 1
             gift_pos = possible_gift_position(map_list)
             gift_obj = GiftObj(random.choice(gifts), gift_pos)
             goal = (gift_pos[0] / 16, gift_pos[1] / 16)
+            start = (int(robot_hitbox.x / 16), int(robot_hitbox.y / 16))
             visited = Astar(start, goal, graph)
 
-        # robot path
-        robot_path = []
-        # draw path
-# UI path builder
-        path_head, path_segment = goal, goal
-        while path_segment and path_segment in visited:
-            pygame.draw.circle(surface, pygame.Color('blue'), *get_circle(*path_segment))
-            path_segment = visited[path_segment]
-            if path_segment is not None:
-                robot_path.append(path_segment)
+            path_head, path_segment = goal, goal
+            while path_segment and path_segment in visited:
+                path_segment = visited[path_segment]
+                if path_segment is not None:
+                    robot_path.append(path_segment)
 
-#robot movement engine calculation
-        print(robot_path)
-        for index, path in enumerate(robot_path[::-1]):
-            if path[0] == robot_path[(len(robot_path) - index - 1) - 1][0]:
-                if path[1] < robot_path[(len(robot_path) - index - 1) - 1][1]:
-                    bot_moving_down = True
-                    robot_movement.append("down")
-                if path[1] > robot_path[(len(robot_path) - index - 1) - 1][1]:
-                    bot_moving_top = True
-                    robot_movement.append("top")
-            else:
-                if path[0] < robot_path[(len(robot_path) - index - 1) - 1][0]:
-                    bot_moving_right = True
-                    robot_movement.append("right")
-                elif path[0] > robot_path[(len(robot_path) - index - 1) - 1][0]:
-                    bot_moving_left = True
-                    robot_movement.append("left")
+            for index, path in enumerate(robot_path[::-1]):
+                if path[0] == robot_path[(len(robot_path) - index - 1) - 1][0]:
+                    if path[1] < robot_path[(len(robot_path) - index - 1) - 1][1]:
+                        robot_movement.append("down")
+                        robot_movement.append("down")
+                    if path[1] > robot_path[(len(robot_path) - index - 1) - 1][1]:
+                        robot_movement.append("top")
+                        robot_movement.append("top")
+                else:
+                    if path[0] < robot_path[(len(robot_path) - index - 1) - 1][0]:
+                        robot_movement.append("right")
+                        robot_movement.append("right")
+                    elif path[0] > robot_path[(len(robot_path) - index - 1) - 1][0]:
+                        robot_movement.append("left")
+                        robot_movement.append("left")
 
-            # print(robot_hitbox.x, robot_hitbox.y)
+            robot_movement.pop(-1)
+            robot_movement.pop(-1)
+            robot_movement.append(robot_movement[-1])
+            robot_movement.append(robot_movement[-1])
+        for path in robot_path:
+            pygame.draw.circle(surface, pygame.Color('blue'), *get_circle(*path))
+
+        print(robot_movement)
+        # for bot_move in robot_movement:
+        #     if bot_move == 'top':
+        #         robot_hitbox.y -= 1
+        #     if bot_move == 'right':
+        #         robot_hitbox.x += 1
+        #     if bot_move == 'left':
+        #         robot_hitbox.x -= 1
+        #     if bot_move == 'down':
+        #         robot_hitbox.y += 1
+
 
 # robot movement engine
-        print(robot_movement)
             # for bot_move in robot_movement:
                # if bot_move == 'top':
                    # robot_hitbox.y -= 1
@@ -407,19 +421,24 @@ def level_1():
                    # robot_hitbox.y += 1
                    # break
 
-        bot_move = robot_movement[-1]
-        print(bot_move)
-        if bot_move == 'top':
-            robot_hitbox.y -= 1
-        if bot_move == 'right':
-            robot_hitbox.x += 1
-        if bot_move == 'left':
-            robot_hitbox.x -= 1
-        if bot_move == 'down':
-            robot_hitbox.y += 1
+        if(len(robot_movement) > 0 and currentTick % 5 == 0):
+            bot_move = robot_movement[0]
+            print(bot_move)
+            if bot_move == 'top':
+               robot_hitbox.y -= 8
+            if bot_move == 'right':
+               robot_hitbox.x += 8
+            if bot_move == 'left':
+               robot_hitbox.x -= 8
+            if bot_move == 'down':
+               robot_hitbox.y += 8
+            robot_movement.pop(0)
 
-        surface.blit(santa_icon, (robot_hitbox.x, robot_hitbox.y))
-        print("Santa move: x= %s y= %s" % (robot_hitbox.x, robot_hitbox.y))
+            surface.blit(santa_icon, (robot_hitbox.x, robot_hitbox.y))
+            print("Santa move: x= %s y= %s" % (robot_hitbox.x, robot_hitbox.y))
+        else:
+            print("No path available")
+            surface.blit(santa_icon, (robot_hitbox.x, robot_hitbox.y))
 
         pygame.draw.circle(surface, pygame.Color('green'), *get_circle(*start))
         pygame.draw.circle(surface, pygame.Color('magenta'), *get_circle(*path_head))
