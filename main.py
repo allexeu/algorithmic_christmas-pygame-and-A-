@@ -1,5 +1,6 @@
 # General imports
 import random
+from heapq import *
 # Pygmae import
 import pygame
 pygame.init()
@@ -13,6 +14,7 @@ from GiftObj import GiftObj
 # Functions imports
 from draw_text import draw_text
 from map_load import map_load
+from path_map_load import path_map_load
 from map_render import map_render
 from snow_falling import snow_falling
 from collision_test_move import move
@@ -116,7 +118,6 @@ def main_menu():
         pygame.display.update()
         clock.tick(60)
 
-
 # Level 1
 def level_1():
     # Size of tile
@@ -140,13 +141,24 @@ def level_1():
     santa = pygame.image.load("game_core/sprites/santa/santa.png")
 
     # Player hitbox
-    santa_hitbox = pygame.Rect(150, 50, tile_size, tile_size)
+    santa_hitbox = pygame.Rect(112, 48, tile_size, tile_size)
+
+    # Robot hitbox
+    robot_x = 15
+    robot_y = 4
+    robot_hitbox = pygame.Rect(15 * 16, 4 * 16, tile_size, tile_size)
 
     # Player movement
     moving_right = False
     moving_left = False
     player_jump = 0
     air_timer = 0
+
+    # Bot movement
+    bot_moving_top = False
+    bot_moving_down = False
+    bot_moving_right = False
+    bot_moving_left = False
 
     # Scroll
     true_scroll = [0, 0]
@@ -189,19 +201,77 @@ def level_1():
     walking_timer = 0
 
     # Gift init
-    gift_obj = GiftObj(random.choice(gifts), possible_gift_position(map_list))
-    print(possible_gift_position(map_list))
+    gift_pos = possible_gift_position(map_list)
+    gift_obj = GiftObj(random.choice(gifts), gift_pos)
 
     # Score
     score_counter = 0
 
+    # A star
+    # A* star algorithm realization
+    # Get neighbours
+    cols, rows = 24, 16
+    path_map = path_map_load('level3_path_map.txt')
+
+    def get_neighbours(x, y):
+        check_neighbour = lambda x, y: True if 0 <= x < cols and 0 <= y < rows else False
+        ways = [-1, 0], [0, -1], [1, 0], [0, 1]
+        return [(path_map[y + dy][x + dx], (x + dx, y + dy)) for dx, dy in ways if check_neighbour(x + dx, y + dy)]
+
+    # Heuristic for path cost calculation
+    def heuristic(a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    # A*
+    def Astar(start, goal, graph):
+        queue = []
+        heappush(queue, (0, start))
+        cost_visited = {start: 0}
+        visited = {start: None}
+
+        while queue:
+            cur_cost, cur_node = heappop(queue)
+            if cur_node == goal:
+                break
+
+            neighbours = graph[cur_node]
+            for neighbour in neighbours:
+                neigh_cost, neigh_node = neighbour
+                new_cost = cost_visited[cur_node] + neigh_cost
+
+                if neigh_node not in cost_visited or new_cost < cost_visited[neigh_node]:
+                    priority = new_cost + heuristic(neigh_node, goal)
+                    heappush(queue, (priority, neigh_node))
+                    cost_visited[neigh_node] = new_cost
+                    visited[neigh_node] = cur_node
+
+        return visited
+
+    # Adjency dictionary
+    graph = {}
+    for y, row in enumerate(path_map):
+        for x, col in enumerate(row):
+            graph[(x, y)] = graph.get((x, y), []) + get_neighbours(x, y)
+
+    start = (15, 4)
+    goal = (gift_pos[0] / 16, gift_pos[1] / 16)
+    queue = []
+    heappush(queue, (0, start))
+    visited = Astar(start, goal, graph)
+    print(visited)
+    def get_circle(x, y):
+        return (x * 16 + 16 // 2, y * 16 + 16 // 2), 16 // 4
+
+    # Robot movement
+    robot_movement = []
+
     while True:
+        print("======= Game tick ========")
         # Screen filling
         surface.fill(sky_blue)
 
         # Scroll
         true_scroll[0] = 0
-        # true_scroll[0] += (santa_hitbox.x - true_scroll[0] - 152) / 20
         scroll = true_scroll.copy()
         scroll[0] = int(scroll[0])
 
@@ -288,7 +358,71 @@ def level_1():
         if gift_obj.hitbox_collision(santa_hitbox, scroll):
             coin_sound.play()
             score_counter += 1
-            gift_obj = GiftObj(random.choice(gifts), possible_gift_position(map_list))
+            gift_pos = possible_gift_position(map_list)
+            gift_obj = GiftObj(random.choice(gifts), gift_pos)
+            goal = (gift_pos[0] / 16, gift_pos[1] / 16)
+            visited = Astar(start, goal, graph)
+
+        # robot path
+        robot_path = []
+        # draw path
+# UI path builder
+        path_head, path_segment = goal, goal
+        while path_segment and path_segment in visited:
+            pygame.draw.circle(surface, pygame.Color('blue'), *get_circle(*path_segment))
+            path_segment = visited[path_segment]
+            if path_segment is not None:
+                robot_path.append(path_segment)
+
+#robot movement engine calculation
+        print(robot_path)
+        for index, path in enumerate(robot_path[::-1]):
+            if path[0] == robot_path[(len(robot_path) - index - 1) - 1][0]:
+                if path[1] < robot_path[(len(robot_path) - index - 1) - 1][1]:
+                    bot_moving_down = True
+                    robot_movement.append("down")
+                if path[1] > robot_path[(len(robot_path) - index - 1) - 1][1]:
+                    bot_moving_top = True
+                    robot_movement.append("top")
+            else:
+                if path[0] < robot_path[(len(robot_path) - index - 1) - 1][0]:
+                    bot_moving_right = True
+                    robot_movement.append("right")
+                elif path[0] > robot_path[(len(robot_path) - index - 1) - 1][0]:
+                    bot_moving_left = True
+                    robot_movement.append("left")
+
+            # print(robot_hitbox.x, robot_hitbox.y)
+
+# robot movement engine
+        print(robot_movement)
+            # for bot_move in robot_movement:
+               # if bot_move == 'top':
+                   # robot_hitbox.y -= 1
+               # if bot_move == 'right':
+                   # robot_hitbox.x += 1
+                # if bot_move == 'left':
+                   # robot_hitbox.x -= 1
+                # if bot_move == 'down':
+                   # robot_hitbox.y += 1
+                   # break
+
+        bot_move = robot_movement[-1]
+        print(bot_move)
+        if bot_move == 'top':
+            robot_hitbox.y -= 1
+        if bot_move == 'right':
+            robot_hitbox.x += 1
+        if bot_move == 'left':
+            robot_hitbox.x -= 1
+        if bot_move == 'down':
+            robot_hitbox.y += 1
+
+        surface.blit(santa_icon, (robot_hitbox.x, robot_hitbox.y))
+        print("Santa move: x= %s y= %s" % (robot_hitbox.x, robot_hitbox.y))
+
+        pygame.draw.circle(surface, pygame.Color('green'), *get_circle(*start))
+        pygame.draw.circle(surface, pygame.Color('magenta'), *get_circle(*path_head))
 
         # Gift render
         gift_obj.render(surface, scroll)
