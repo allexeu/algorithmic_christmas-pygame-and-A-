@@ -359,12 +359,32 @@ def level_1():
 
         # Collision with gift handling
         if gift_obj.hitbox_collision(santa_hitbox, scroll) or robot_hitbox.colliderect(gift_obj.get_hitbox(scroll)):
+            if (len(robot_movement) > 0 and robot_hitbox.x % 16 != 0 and gift_obj.hitbox_collision(santa_hitbox, scroll)):
+                bot_move = robot_movement[0]
+                print(bot_move)
+                if bot_move == 'top':
+                    robot_hitbox.y -= 8
+                if bot_move == 'right':
+                    robot_hitbox.x += 8
+                if bot_move == 'left':
+                    robot_hitbox.x -= 8
+                if bot_move == 'down':
+                    robot_hitbox.y += 8
+                robot_movement.pop(0)
+
+                surface.blit(santa_icon, (robot_hitbox.x, robot_hitbox.y))
+
             robot_movement.clear()
+
             coin_sound.play()
             score_counter += 1
             gift_pos = possible_gift_position(map_list)
             gift_obj = GiftObj(random.choice(gifts), gift_pos)
             goal = (gift_pos[0] / 16, gift_pos[1] / 16)
+
+            if (robot_hitbox.colliderect(gift_obj.get_hitbox(scroll))):
+                robot_hitbox.x = goal[0]
+                robot_hitbox.y = goal[1]
             start = (int(robot_hitbox.x / 16), int(robot_hitbox.y / 16))
             visited = Astar(start, goal, graph)
 
