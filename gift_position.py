@@ -1,5 +1,4 @@
 import random
-from map_load import map_load
 
 def possible_gift_position(map_list):
     gift_positions = []
@@ -15,4 +14,3 @@ def possible_gift_position(map_list):
 
     return random.choice(gift_positions)
 
-# print(possible_gift_position())
